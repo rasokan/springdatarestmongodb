@@ -1,0 +1,52 @@
+<html>
+<head>
+<script type="text/javascript"
+	src="https://ajax.googleapis.com/ajax/libs/jquery/1.9.1/jquery.min.js"></script>
+<script type="text/javascript"
+	src="http://documentcloud.github.com/underscore/underscore-min.js"></script>
+<script type="text/javascript"
+	src="http://documentcloud.github.com/backbone/backbone-min.js"></script>
+<link rel="stylesheet"
+	href="http://cdnjs.cloudflare.com/ajax/libs/1140/2.0/1140.css"></link>
+</head>
+<body>
+	<div class="container">
+		<h1>Person list page from Mongodb</h1>
+		<div class="page"></div>
+	</div>
+
+
+	<script>
+		var person = Backbone.Collection.extend({
+			url : '/person'
+		});
+
+		var personList = Backbone.View.extend({
+			el : '.page',
+			render : function() {
+				var persons = new person();
+				persons.fetch({
+					success : function() {
+						that.$el.html('Content is going to show here');
+					}
+				});
+			}
+		});
+		var personlistinstance = new personList();
+		var Router = Backbone.Router.extend({
+			routes : {
+				'' : 'home'
+			}
+		});
+		var router = new Router();
+		router.on('route:home', function() {
+			personlistinstance.render();
+		});
+		Backbone.history.start();
+	</script>
+
+</body>
+</html>
+
+
+

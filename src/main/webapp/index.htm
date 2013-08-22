@@ -1,0 +1,219 @@
+<html>
+<head>
+<script type="text/javascript"
+	src="https://ajax.googleapis.com/ajax/libs/jquery/1.9.1/jquery.min.js"></script>
+<script type="text/javascript"
+	src="http://documentcloud.github.com/underscore/underscore-min.js"></script>
+<script type="text/javascript"
+	src="http://documentcloud.github.com/backbone/backbone-min.js"></script>
+<script type="text/javascript"
+		src="https://cdnjs.cloudflare.com/ajax/libs/backbone.validation/0.7.1/backbone-validation-min.js"></script>
+
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/twitter-bootstrap/2.1.1/css/bootstrap.min.css">
+
+<script type="text/x-underscore-template" id="person-list-template">
+<a href="#new" class="btn btn-primary">New </a>
+</br></br>
+<table class="table striped">
+	<thead>
+		<tr>
+			<th>Username</th>
+			<th>First Name</th>
+			<th>Last Name</th>
+		</tr>
+	</thead>
+	<tbody>
+		<%_.each(persons,function(person) { %>
+				<%_.each(person.get('content'),function(content){ %>
+				<tr> 
+							<td><%= content.username %></td>
+							<td><%= content.firstName %></td>
+							<td><%= content.lastName %></td>
+					<%_.each(content.links,function(links){%>
+							<% var tempLinks =links.href%>
+							<% var numberOfItems=new Array(); numberOfItems=tempLinks.split("/");%>
+							<% console.log("Number of Items:"+numberOfItems[6]);%>
+							<td><a href="#edit/<%=numberOfItems[6]%>" class="btn">Edit User</a></td>
+					<%});%>
+				</tr>
+				<% }); %>
+			<% }); %> 
+	</tbody>
+</table>
+</script>
+<script type="text/x-underscore-template" id="editUser-template">
+	<form class="editUser-form">
+		<legend><%= person? 'Update' :'Create'%> User</legend>
+			<label>User name</label>
+			<input type="text" class ="ui-Validation" name="username" value="<%= person ? person.get('username'):''%>" > 
+			<label> First Name</label>
+			<input type="text" name="firstName" class ="ui-Validation" value="<%= person ? person.get('firstName'):''%>">
+			<label>Last Name</label>
+			<input type="text" name="lastName" class ="ui-Validation" value="<%= person ? person.get('lastName'):''%>">
+			</hr>
+			<button type="submit" class="btn"><%= person ? 'Update' :'Create'%> User</button> 
+			<% if(person) {%>
+						<input type="hidden" name="id" value="<%= person.id%>">
+						<button type="button" class="btn btn-danger delete">Delete</button>
+			<%};%>
+		
+			</form>
+</script>
+<script type="text/javascript">
+$.ajaxSetup({
+ headers:{
+ 	accept:"application/json"
+ }
+});
+</script>
+<script>
+$.fn.serializeObject = function() {
+      var o = {};
+      var a = this.serializeArray();
+      $.each(a, function() {
+          if (o[this.name] !== undefined) {
+              if (!o[this.name].push) {
+                  o[this.name] = [o[this.name]];
+              }
+              o[this.name].push(this.value || '');
+          } else {
+              o[this.name] = this.value || '';
+          }
+      });
+      return o;
+    };
+</script>
+<body>
+	<div class="container">
+		<h1>Person list page from Mongodb</h1>
+		<div class="page"></div>
+	</div>
+	<script>
+		var person = Backbone.Collection.extend({
+			url : '/springdatarestmongodb/api/person/'
+		});
+
+		var personList = Backbone.View.extend({
+			el : '.page',
+			render : function() {
+				var persons = new person();
+				var that=this;
+				persons.fetch({	
+					success : function(persons) {
+						var tempObject=JSON.stringify(persons.models);
+						console.log(tempObject);
+						var template = _.template($('#person-list-template').html(),{persons:persons.models});
+						that.$el.html(template);
+						console.log(template);
+						console.log(that.$el.html(template));
+					},
+					error:function(errorresponse){
+						console.log(errorresponse)
+					}
+				});
+			}
+		});
+		var createPerson = Backbone.Model.extend({
+			urlRoot	 : '/springdatarestmongodb/api/person/',
+			defaults:{
+				'username':'',
+				'firstName':'',
+				'lastName':''
+			},
+			validate:function(attrs){
+				var errors=[];
+				if(!attrs.username){
+					errors.push({name:'username'},{message:'Please enter username'});
+				}
+				if(!attrs.firstName){
+					alert("Enter into pushing of firstName");
+					errors.push({name:'firstName'},{message:'Please enter first Name'});
+				}
+				return errors.length>0 ? errors:false;
+			}
+		});
+		var editUser=Backbone.View.extend({
+			el:'.page',
+			render:function(options){
+				var that=this;
+				if(options.id){
+					that.person=new createPerson({id:options.id});
+					that.person.fetch({
+						success:function(person){
+							console.log("Inside person View"+JSON.stringify(person));
+							var template = _.template($('#editUser-template').html(),{person:person});
+								that.$el.html(template);
+						}
+					});
+				}
+				else{
+							var template = _.template($('#editUser-template').html(),{person:null});
+							that.$el.html(template);
+					}
+			},
+			events:{
+				'submit .editUser-form':'saveUser',
+				'click .delete':'deleteUser'
+			},
+			saveUser:function(ev){
+				var userDetails=$(ev.currentTarget).serializeObject();
+				var newPerson=new createPerson();
+				var me=this;
+				newPerson.save(userDetails,
+				{
+					wait:true,
+					success:function(model,response){	
+						console.log(model);
+						console.log(response);
+						console.log("Logging inside success");  
+						alert("inside success")	;
+						
+					},
+					error:function(model,errors){
+						console.log(model.toJSON());
+						console.log("Inside error");
+						me.showErrors(errors);
+						router.navigate('',{trigger:true});
+					}
+				});
+				console.log(userDetails);  
+				return false;
+				},
+						showErrors:function(errors){
+							alert("Called show Errors function:"+errors);
+							_.each(errors,function(error){
+							alert("Inside errors function"+error.name);
+							var uiValidation = this.$('.'+ error.name);
+							uiValidation.addClass('error');
+							uiValidation.find('.help-inline').text(error.message);
+							},this);
+						},
+					deleteUser:function(ev){
+					this.person.destroy({
+					success:function(){
+						router.navigate('',{trigger:true});	
+					}
+				});
+				return false;
+			}
+		});	
+		var personlistinstance = new personList();
+		var editUserinstance=new editUser();
+		var Router = Backbone.Router.extend({
+			routes : { 
+				'' : 'index',
+				'new':'editUser',
+				'edit/:id':'editUser'
+			}
+		});
+		var router = new Router();
+		router.on('route:index', function() {
+			personlistinstance.render();
+		});
+		router.on('route:editUser', function(id) {
+			editUserinstance.render({id:id});
+		});
+		Backbone.history.start();
+	</script>
+</body>
+</html>
